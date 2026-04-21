@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synapse City</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #12141f;
+  --panel: #1a1d2e;
+  --panel2: #1f2235;
+  --border: #2e3250;
+  --ink: #e8ecff;
+  --muted: #5a6080;
+  --dim: #3a3f60;
+
+–you:  #4fffb0;
+–gaba: #ff6b6b;
+–aden: #a0a8d0;
+–sero: #74b9ff;
+–fix:  #fd79a8;
+–warn: #fdcb6e;
+–bad:  #ff4757;
+
+–hp-color: var(–you);
+–scanline: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+background: var(–bg);
+background-image: radial-gradient(ellipse at 20% 20%, rgba(79,255,176,0.04) 0%, transparent 60%),
+radial-gradient(ellipse at 80% 80%, rgba(116,185,255,0.04) 0%, transparent 60%);
+color: var(–ink);
+font-family: ‘IBM Plex Sans’, sans-serif;
+min-height: 100vh;
+overflow-x: hidden;
+}
+
+/* scanline overlay */
+body::before {
+content: ‘’;
+position: fixed; inset: 0;
+background: var(–scanline);
+pointer-events: none; z-index: 200;
+opacity: 0.4;
+}
+
+/* ── LAYOUT ── */
+#game {
+max-width: 720px;
+margin: 0 auto;
+padding: 24px 20px 80px;
+position: relative; z-index: 1;
+}
+
+/* ── HUD ── */
+#hud {
+position: sticky; top: 0; z-index: 50;
+background: var(–bg);
+border-bottom: 1px solid var(–border);
+padding: 12px 0 10px;
+margin-bottom: 28px;
+display: flex; align-items: center; gap: 16px;
+}
+
+.hud-label {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 7px; color: var(–muted);
+white-space: nowrap;
+}
+
+.hp-bar-wrap {
+flex: 1;
+height: 10px;
+background: var(–panel2);
+border: 1px solid var(–border);
+border-radius: 2px;
+overflow: hidden;
+}
+
+#hp-bar {
+height: 100%;
+background: var(–hp-color);
+border-radius: 2px;
+transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1), background 0.4s;
+box-shadow: 0 0 8px var(–hp-color);
+}
+
+#hp-num {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 8px; color: var(–hp-color);
+min-width: 36px; text-align: right;
+}
+
+.hud-scene {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 7px; color: var(–dim);
+min-width: 60px; text-align: right;
+}
+
+/* ── SCENE ── */
+.scene { display: none; }
+.scene.active {
+display: block;
+animation: pop 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+@keyframes pop {
+from { opacity: 0; transform: translateY(12px) scale(0.99); }
+to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── LOCATION BANNER ── */
+.location-bar {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 8px;
+color: var(–muted);
+border: 1px solid var(–border);
+background: var(–panel);
+padding: 8px 14px;
+border-radius: 4px;
+margin-bottom: 20px;
+letter-spacing: 1px;
+}
+
+.location-bar span { color: var(–you); }
+
+/* ── SCENE TITLE ── */
+.scene-title {
+font-family: ‘Press Start 2P’, monospace;
+font-size: clamp(13px, 3vw, 18px);
+line-height: 1.6;
+color: var(–ink);
+margin-bottom: 24px;
+letter-spacing: -0.5px;
+}
+
+/* ── DIALOGUE BOX ── */
+.dialogue {
+background: var(–panel);
+border: 2px solid var(–border);
+border-radius: 8px;
+padding: 0;
+margin-bottom: 14px;
+overflow: hidden;
+}
+
+.dialogue-header {
+display: flex; align-items: center; gap: 10px;
+padding: 10px 16px;
+border-bottom: 1px solid var(–border);
+background: var(–panel2);
+}
+
+.char-avatar {
+width: 32px; height: 32px;
+border-radius: 6px;
+display: flex; align-items: center; justify-content: center;
+font-size: 16px;
+flex-shrink: 0;
+border: 1.5px solid;
+}
+
+.char-name {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 8px;
+letter-spacing: 1px;
+}
+
+.char-title {
+font-size: 10px; color: var(–muted);
+margin-top: 2px;
+}
+
+.dialogue-body {
+padding: 16px 18px;
+font-size: 15px; line-height: 1.75;
+color: #c8d0f0;
+font-style: italic;
+}
+
+.dialogue-body strong { font-style: normal; font-weight: 600; }
+
+/* character color schemes */
+.c-you   { –cc: var(–you);  background: rgba(79,255,176,0.08);  border-color: rgba(79,255,176,0.3); }
+.c-gaba  { –cc: var(–gaba); background: rgba(255,107,107,0.08); border-color: rgba(255,107,107,0.3); }
+.c-aden  { –cc: var(–aden); background: rgba(160,168,208,0.08); border-color: rgba(160,168,208,0.3); }
+.c-sero  { –cc: var(–sero); background: rgba(116,185,255,0.08); border-color: rgba(116,185,255,0.3); }
+.c-fix   { –cc: var(–fix);  background: rgba(253,121,168,0.08); border-color: rgba(253,121,168,0.3); }
+.c-narr  { –cc: var(–warn); background: rgba(253,203,110,0.06); border-color: rgba(253,203,110,0.2); }
+
+.dialogue-header .char-name { color: var(–cc); }
+.char-avatar { border-color: var(–cc); color: var(–cc); background: transparent; }
+
+/* ── NARRATOR (no border, just text) ── */
+.narr {
+font-size: 15px; line-height: 1.8;
+color: #8a93bb;
+margin-bottom: 14px;
+padding: 0 4px;
+font-style: italic;
+}
+
+.narr strong { color: var(–ink); font-style: normal; font-weight: 600; }
+.narr em { color: var(–warn); font-style: normal; }
+
+/* ── SCIENCE TIP ── */
+.sci {
+background: var(–panel2);
+border: 1px solid var(–border);
+border-left: 3px solid var(–you);
+border-radius: 0 6px 6px 0;
+padding: 14px 18px;
+margin: 18px 0;
+font-size: 13px; line-height: 1.7;
+color: var(–muted);
+}
+
+.sci::before {
+content: ‘🔬 BRAIN FACTS:’;
+display: block;
+font-family: ‘Press Start 2P’, monospace;
+font-size: 7px; color: var(–you);
+margin-bottom: 8px; letter-spacing: 1px;
+}
+
+/* ── CHOICES ── */
+.choices {
+display: flex; flex-direction: column; gap: 8px;
+margin-top: 24px;
+}
+
+.btn {
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 6px;
+padding: 14px 18px;
+color: var(–ink);
+font-family: ‘IBM Plex Sans’, sans-serif;
+font-size: 14.5px; line-height: 1.5;
+cursor: pointer; text-align: left;
+transition: all 0.18s;
+display: flex; align-items: flex-start; gap: 12px;
+position: relative; overflow: hidden;
+}
+
+.btn::after {
+content: ‘’;
+position: absolute; inset: 0;
+background: var(–bc, var(–you));
+opacity: 0; transition: opacity 0.18s;
+}
+
+.btn:hover::after { opacity: 0.07; }
+.btn:hover {
+border-color: var(–bc, var(–you));
+transform: translateX(4px);
+box-shadow: -3px 0 0 var(–bc, var(–you));
+}
+
+.btn-icon {
+font-size: 18px; flex-shrink: 0;
+position: relative; z-index: 1;
+line-height: 1.4;
+}
+
+.btn span {
+position: relative; z-index: 1;
+}
+
+.btn-hint {
+display: block;
+font-size: 11px; color: var(–muted);
+margin-top: 3px; font-style: italic;
+}
+
+.b-good { –bc: var(–you); }
+.b-risk { –bc: var(–warn); }
+.b-bad  { –bc: var(–bad); }
+.b-coc  { –bc: #ff4757; }
+.b-opi  { –bc: #a29bfe; }
+.b-caf  { –bc: var(–warn); }
+.b-ser  { –bc: var(–sero); }
+.b-neu  { –bc: var(–muted); }
+
+/* ── HP CHANGE FLASH ── */
+.hp-gain { animation: flashGreen 0.5s; }
+.hp-lose { animation: flashRed 0.5s; }
+@keyframes flashGreen {
+0%,100% { background: var(–bg); }
+50% { background: rgba(79,255,176,0.08); }
+}
+@keyframes flashRed {
+0%,100% { background: var(–bg); }
+50% { background: rgba(255,71,87,0.1); }
+}
+
+/* ── STATUS EFFECT ── */
+.status-row {
+display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.status-badge {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 7px; padding: 4px 8px;
+border-radius: 3px; letter-spacing: 1px;
+}
+.st-ok    { background: rgba(79,255,176,0.1);  color: var(–you);  border: 1px solid rgba(79,255,176,0.3); }
+.st-warn  { background: rgba(253,203,110,0.1); color: var(–warn); border: 1px solid rgba(253,203,110,0.3); }
+.st-bad   { background: rgba(255,71,87,0.1);   color: var(–bad);  border: 1px solid rgba(255,71,87,0.3); }
+.st-info  { background: rgba(116,185,255,0.1); color: var(–sero); border: 1px solid rgba(116,185,255,0.3); }
+
+/* ── ENDING ── */
+.ending-screen {
+text-align: center;
+padding: 20px 0;
+}
+
+.ending-big {
+font-family: ‘Press Start 2P’, monospace;
+font-size: clamp(10px, 3vw, 16px);
+line-height: 1.8; margin-bottom: 24px;
+letter-spacing: 1px;
+}
+
+.ending-score {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 11px; color: var(–muted);
+margin-bottom: 8px;
+}
+
+.score-val {
+font-family: ‘Press Start 2P’, monospace;
+font-size: clamp(28px, 8vw, 48px);
+display: block; margin: 8px 0 20px;
+}
+
+.ending-blurb {
+font-size: 15px; line-height: 1.8; color: #9aa3cc;
+max-width: 520px; margin: 0 auto 28px;
+font-style: italic;
+}
+
+.divider { border: none; border-top: 1px solid var(–border); margin: 28px 0; }
+
+.restart-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+
+.restart-btn {
+background: var(–panel);
+border: 1px solid var(–border);
+border-radius: 6px; padding: 10px 20px;
+color: var(–muted);
+font-family: ‘Press Start 2P’, monospace;
+font-size: 8px; letter-spacing: 1px;
+cursor: pointer; transition: all 0.2s;
+}
+.restart-btn:hover { border-color: var(–you); color: var(–you); }
+
+/* ── MINI VISUAL ── */
+.vis {
+display: flex; align-items: center; justify-content: center;
+gap: 10px; margin: 20px 0; flex-wrap: wrap;
+}
+
+.mol {
+font-family: ‘Press Start 2P’, monospace;
+font-size: 9px; padding: 8px 12px;
+border: 1.5px solid; border-radius: 4px;
+letter-spacing: 1px;
+}
+
+.mol-da  { color: var(–you);  border-color: var(–you);  background: rgba(79,255,176,0.08); }
+.mol-ga  { color: var(–gaba); border-color: var(–gaba); background: rgba(255,107,107,0.08); }
+.mol-se  { color: var(–sero); border-color: var(–sero); background: rgba(116,185,255,0.08); }
+.mol-op  { color: #a29bfe;     border-color: #a29bfe;     background: rgba(162,155,254,0.08); }
+.mol-coc { color: var(–bad);  border-color: var(–bad);  background: rgba(255,71,87,0.08); }
+.mol-caf { color: var(–warn); border-color: var(–warn); background: rgba(253,203,110,0.08); }
+.mol-ad  { color: var(–muted);border-color: var(–muted);background: rgba(90,96,128,0.08); }
+.mol-re  { color: var(–warn); border-color: var(–warn); background: rgba(253,203,110,0.08); }
+.mol-x   { color: var(–bad);  border-color: var(–bad);  background: rgba(255,71,87,0.06); opacity: 0.5; }
+
+.vis-arrow { color: var(–muted); font-size: 16px; }
+.vis-x     { color: var(–bad); font-size: 20px; font-weight: 700; }
+.vis-check { color: var(–you); font-size: 18px; }
+
+@media (max-width: 500px) {
+.scene-title { font-size: 12px; }
+.btn { font-size: 13px; padding: 12px 14px; }
+.dialogue-body { font-size: 14px; }
+}
+</style>
+
+</head>
+<body>
+
+<div id="game">
+  <div id="hud" style="display:none">
+    <span class="hud-label">BRAIN HP</span>
+    <div class="hp-bar-wrap"><div id="hp-bar" style="width:100%"></div></div>
+    <span id="hp-num">100</span>
+    <span class="hud-scene" id="hud-scene">DAY 1</span>
+  </div>
+  <div id="scene-container"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════
+let hp = 100;
+let flags = {};
+
+function setHp(val) {
+  const old = hp;
+  hp = Math.max(0, Math.min(100, val));
+  const bar = document.getElementById('hp-bar');
+  const num = document.getElementById('hp-num');
+  if (bar) bar.style.width = hp + '%';
+  if (num) num.textContent = hp;
+
+  // color shift
+  if (hp > 60) { bar.style.background = 'var(--you)'; bar.style.boxShadow = '0 0 8px var(--you)'; document.documentElement.style.setProperty('--hp-color','var(--you)'); }
+  else if (hp > 30) { bar.style.background = 'var(--warn)'; bar.style.boxShadow = '0 0 8px var(--warn)'; document.documentElement.style.setProperty('--hp-color','var(--warn)'); }
+  else { bar.style.background = 'var(--bad)'; bar.style.boxShadow = '0 0 8px var(--bad)'; document.documentElement.style.setProperty('--hp-color','var(--bad)'); }
+
+  // flash
+  const body = document.body;
+  body.classList.remove('hp-gain','hp-lose');
+  void body.offsetWidth;
+  body.classList.add(hp >= old ? 'hp-gain' : 'hp-lose');
+}
+
+function modHp(delta) { setHp(hp + delta); }
+
+// ═══════════════════════════════════════════
+// SCENE ENGINE
+// ═══════════════════════════════════════════
+const scenes = {};
+
+function reg(id, fn) { scenes[id] = fn; }
+
+function go(id, hpDelta) {
+  if (hpDelta) modHp(hpDelta);
+  const hud = document.getElementById('hud');
+  if (id !== 'title') hud.style.display = 'flex';
+  const sc = document.getElementById('hud-scene');
+  if (sc) sc.textContent = id.toUpperCase();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const container = document.getElementById('scene-container');
+  container.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'scene active';
+  div.innerHTML = scenes[id]();
+  container.appendChild(div);
+}
+
+// ── HELPERS ──
+const loc = (place, sub='') => `<div class="location-bar">📍 <span>${place}</span>${sub ? ' › ' + sub : ''}</div>`;
+const title = t => `<h2 class="scene-title">${t}</h2>`;
+const narr = t => `<p class="narr">${t}</p>`;
+
+function dlg(char, emoji, charClass, name, role, text) {
+  return `<div class="dialogue">
+    <div class="dialogue-header ${charClass}">
+      <div class="char-avatar ${charClass}">${emoji}</div>
+      <div><div class="char-name">${name}</div><div class="char-title">${role}</div></div>
+    </div>
+    <div class="dialogue-body">${text}</div>
+  </div>`;
+}
+
+const you   = (t) => dlg('you',  '⚡','c-you', 'YOU (DOPAMINE)','Courier, Reward District', t);
+const gaba  = (t) => dlg('gaba', '🛡','c-gaba','GABA',          'Head of Security', t);
+const aden  = (t) => dlg('aden', '😴','c-aden','ADENOSINE',     'Shift Supervisor, Tired Dept.', t);
+const sero  = (t) => dlg('sero', '🌊','c-sero','SEROTONIN',     'Your Cousin, Mood District', t);
+const fixer = (t) => dlg('fix',  '🎭','c-fix', 'THE FIXER',     'Unknown Origin', t);
+const narrd = (t) => dlg('narr', '📖','c-narr','NARRATOR',      '', t);
+
+const sci = t => `<div class="sci">${t}</div>`;
+const vis = inner => `<div class="vis">${inner}</div>`;
+const mol = (cls, t) => `<div class="mol ${cls}">${t}</div>`;
+const arr = () => `<span class="vis-arrow">→</span>`;
+const xmark = () => `<span class="vis-x">✗</span>`;
+const check = () => `<span class="vis-check">✓</span>`;
+
+const status = (...badges) => `<div class="status-row">${badges.map(([cls,t]) => `<span class="status-badge ${cls}">${t}</span>`).join('')}</div>`;
+
+function choices(...opts) {
+  return `<div class="choices">${opts.map(([cls, icon, text, hint, scene, delta]) =>
+    `<button class="btn ${cls}" onclick="go('${scene}'${delta ? ','+delta : ''})">
+      <span class="btn-icon">${icon}</span>
+      <span>${text}${hint ? `<span class="btn-hint">${hint}</span>` : ''}</span>
+    </button>`
+  ).join('')}</div>`;
+}
+
+function endScreen(color, titleText, score, blurb, scoreColor) {
+  return `<div class="ending-screen">
+    <div class="ending-big" style="color:${color}">${titleText}</div>
+    <div class="ending-score">BRAIN HEALTH SCORE</div>
+    <span class="score-val" style="color:${scoreColor || color}">${score}</span>
+    <p class="ending-blurb">${blurb}</p>
+    <hr class="divider">
+    <div class="restart-row">
+      <button class="restart-btn" onclick="resetGame()">▶ PLAY AGAIN</button>
+    </div>
+  </div>`;
+}
+
+function resetGame() {
+  hp = 100;
+  flags = {};
+  document.getElementById('hud').style.display = 'none';
+  go('title');
+}
+
+// ═══════════════════════════════════════════
+// SCENES
+// ═══════════════════════════════════════════
+
+// ── TITLE ──
+reg('title', () => `
+  <div style="padding: 20px 0 10px">
+    <div style="font-family:'Press Start 2P',monospace;font-size:10px;color:var(--muted);letter-spacing:3px;margin-bottom:16px">A CHOOSE-YOUR-OWN-ADVENTURE</div>
+    <div style="font-family:'Press Start 2P',monospace;font-size:clamp(28px,8vw,52px);line-height:1.3;color:var(--you);text-shadow:0 0 40px rgba(79,255,176,0.4);margin-bottom:6px">SYNAPSE<br>CITY</div>
+    <div style="font-family:'IBM Plex Sans',sans-serif;font-style:italic;font-size:17px;color:var(--muted);margin-bottom:48px;line-height:1.5">You are Dopamine.<br>The city needs you. The city might destroy you.</div>
+    <div style="font-family:'Press Start 2P',monospace;font-size:8px;color:var(--muted);margin-bottom:20px;letter-spacing:2px">THE CAST:</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:40px">
+      ${['⚡ YOU — Dopamine. Courier. Keeps the city motivated.','🛡 GABA — Head of Security. Keeps everything from going off the rails.','😴 ADENOSINE — The tired coworker who wants everyone to go home.','🌊 SEROTONIN — Your anxious cousin. Works the mood district.','🎭 THE FIXER — Shows up when drugs enter the picture. Trust no one.'].map(c => `<div style="font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:#7a85aa;padding:8px 12px;background:var(--panel);border:1px solid var(--border);border-radius:4px">${c}</div>`).join('')}
+    </div>
+    ${choices(
+      ['b-good','▶','START GAME','Your shift begins now.','intro', null]
+    )}
+  </div>
+`);
+
+// ── INTRO ──
+reg('intro', () => `
+  ${loc('SYNAPSE CITY', 'Morning Briefing')}
+  ${title('WELCOME TO THE JOB')}
+  ${narr('Every morning in <strong>Synapse City</strong>, the same routine. Neurons fire, vesicles burst open, and you pour out into the gap between two brain cells — the synaptic cleft. Cross it, hit the receptor, deliver your message, get recycled. Repeat.')}
+  ${you('"I\'ve done this a million times. Literally a million. The job is simple: get across the cleft, dock to the receptor, send the \'something good happened\' signal, come home. Clean. Easy. Except today feels different."')}
+  ${narr('The message you carry? <em>Something is worth doing again.</em> That\'s it. You\'re not happiness — you\'re motivation. You\'re the little flag the brain plants on a memory that says: <strong>remember this one.</strong>')}
+  ${sci('Dopamine is released when the brain expects or receives a reward. It teaches the brain what to want more of. It\'s not the pleasure itself — it\'s the "I want to do that again" feeling.')}
+  ${choices(
+    ['b-good','→','Head to the dispatch station','Begin your shift.','dispatch', null]
+  )}
+`);
+
+// ── DISPATCH ──
+reg('dispatch', () => `
+  ${loc('DISPATCH STATION', 'Pre-Shift')}
+  ${title('SOMETHING IS IN THE AIR')}
+  ${you('"Okay. Just another delivery run across the cleft. Cross, bind, recycle. Cross, bind, recycle. I could do this asleep."')}
+  ${gaba('"Not so fast, courier. Today\'s forecast is... complicated. Something entered the bloodstream last night. I don\'t know exactly what yet, but the city\'s chemistry is already shifting. Choose your route carefully."')}
+  ${you('"Great. Wonderful. What are my options?"')}
+  ${gaba('"Five routes today. Each one leads somewhere different. And your brain health score depends on what you encounter out there."')}
+  ${narr('You look out at the synaptic cleft. Five paths shimmer in front of you.')}
+  ${choices(
+    ['b-good',  '⚡','ROUTE 1: The Clean Run',     'A normal day. Nothing unusual.', 'n1', null],
+    ['b-coc',   '❄','ROUTE 2: The Blocked Exit',   'Something is jamming the recycling door.', 'c1', null],
+    ['b-opi',   '💊','ROUTE 3: The Silent Guard',   'Security is offline. Something got to GABA.', 'o1', null],
+    ['b-caf',   '☕','ROUTE 4: The Sleepy Coworker','Adenosine is acting strange.', 'ca1', null],
+    ['b-ser',   '🌊','ROUTE 5: The Mood District',  'Serotonin called in sick. Again.', 'ss1', null]
+  )}
+`);
+
+// ════════════════════════════════
+// ROUTE 1 — NORMAL
+// ════════════════════════════════
+reg('n1', () => `
+  ${status(['st-ok','HP: NORMAL'],['st-info','ROUTE: CLEAN RUN'])}
+  ${loc('SYNAPTIC CLEFT', 'Midmorning')}
+  ${title('CROSSING THE GAP')}
+  ${narr('You launch out of the vesicle and drift across the cleft. Twenty nanometers of open space. It\'s actually kind of peaceful out here.')}
+  ${you('"Alright. Receptor\'s on the other side. I can see it from here — shaped exactly like me, which is either flattering or terrifying."')}
+  ${narr('On the other side, the receiving neuron\'s receptor is waiting. It\'s a lock. You are the key. The fit is perfect — billions of years of evolution made sure of that.')}
+  ${vis(mol('mol-da','YOU') + arr() + mol('mol-re','RECEPTOR') + check())}
+  ${sci('Receptors are proteins with a shape that matches one specific molecule. When dopamine slots in, it triggers a chain reaction inside the cell — like a key not just opening a lock, but starting an engine.')}
+  ${choices(
+    ['b-good','→','Dock to the receptor','Deliver the signal.','n2', null],
+    ['b-risk','?','Hesitate and look around first','Something feels off...','n2b', null]
+  )}
+`);
+
+reg('n2', () => `
+  ${status(['st-ok','HP: NORMAL'],['st-ok','SIGNAL: DELIVERED'])}
+  ${loc('POSTSYNAPTIC NEURON', 'Receptor Site')}
+  ${title('SIGNAL SENT')}
+  ${narr('You slot into the receptor. Click. The receiving neuron lights up. Somewhere upstairs, the brain just marked this moment as a good one.')}
+  ${you('"Message delivered. \'Something good happened here.\' Always satisfying, that part."')}
+  ${narr('Now you need to get home. Your recycling port — the reuptake transporter — is waiting back on the other side. It\'ll pull you in, clean you up, and load you back into a vesicle for the next delivery.')}
+  ${gaba('"Good work, courier. Clean in, clean out. That\'s the way it\'s supposed to go."')}
+  ${sci('After binding the receptor, dopamine detaches and gets pulled back into the presynaptic neuron via a reuptake transporter. This recycling is what keeps signals sharp and brief — a fifth of a second from start to finish.')}
+  ${choices(
+    ['b-good','→','Head back to the transporter','Complete the cycle.','n3', null]
+  )}
+`);
+
+reg('n2b', () => `
+  ${status(['st-warn','HP: -5'],['st-warn','HESITATION NOTED'])}
+  ${loc('SYNAPTIC CLEFT', 'Midpoint — Floating')}
+  ${title('DON\'T OVERTHINK IT')}
+  ${narr('You hang in the middle of the cleft, just... floating. Thinking. The receiving neuron waits. The signal doesn\'t send itself.')}
+  ${you('"I\'m just... what if the receptor doesn\'t accept me today? What if I float past? What if—"')}
+  ${gaba('"COURIER. You\'re a dopamine molecule. You have one job. The receptor fits you perfectly. Stop existential crisis-ing and DOCK."')}
+  ${narr('You dock. The signal sends. But you wasted time, and a little extra adenosine built up while you were floating around being philosophical.')}
+  ${choices(
+    ['b-good','→','Fine, fine. Continue.','Back on track.','n2', -5]
+  )}
+`);
+
+reg('n3', () => `
+  ${status(['st-ok','HP: NORMAL'],['st-ok','CYCLE: COMPLETE'])}
+  ${loc('PRESYNAPTIC NEURON', 'Reuptake Port')}
+  ${title('THE RETURN TRIP')}
+  ${narr('The transporter pulls you back in. You\'re cleaned up, repackaged into a vesicle, and ready to go again. Total time: about 200 milliseconds.')}
+  ${you('"And that\'s a delivery. Short, clean, to the point. The brain works best when signals are precise — not too long, not too weak."')}
+  ${gaba('"Perfect run. No flooding, no crash, no chaos. This is what it looks like when the system works."')}
+  ${narr('Somewhere upstairs, the person just enjoyed a small wave of satisfaction. Maybe they finished a task. Maybe they smiled at something. The brain quietly filed the memory: <strong>that was worth doing.</strong>')}
+  ${sci('The healthy dopamine loop: release → cross the cleft → bind receptor → signal fires → reuptake → recycle. It lasts under a second. The brevity is the point — short signals mean the next one will feel just as meaningful.')}
+  ${choices(
+    ['b-good','🏁','End Route 1','See your score.','end-normal', null]
+  )}
+`);
+
+reg('end-normal', () => `
+  ${endScreen('var(--you)','✓ PERFECT RUN', hp + ' / 100', 'A textbook day. Release, bind, recycle. The brain worked exactly as designed — motivated, calibrated, and self-regulating. Not every day in Synapse City is this clean.', 'var(--you)')}
+  ${choices(['b-neu','↩','Try another route','','dispatch',null])}
+`);
+
+// ════════════════════════════════
+// ROUTE 2 — COCAINE
+// ════════════════════════════════
+reg('c1', () => `
+  ${status(['st-warn','FOREIGN MOLECULE DETECTED'],['st-bad','ROUTE: RISKY'])}
+  ${loc('SYNAPTIC CLEFT', 'Near Reuptake Port')}
+  ${title('THE EXIT IS BLOCKED')}
+  ${narr('You cross the cleft, dock to the receptor, send the signal. Textbook. Now you turn around to go home — and that\'s when you see it.')}
+  ${you('"...Uh. Why is there something in the recycling door?"')}
+  ${fixer('"Hey there, little courier. Name\'s Cocaine. Don\'t mind me — I\'m just... sitting here. In your only exit. Indefinitely."')}
+  ${you('"Can you move?"')}
+  ${fixer('"Afraid not. But hey, look on the bright side — you get to stay out here in the cleft! With all your friends! Who are also stuck. And also hitting the receptors over and over."')}
+  ${narr('Hundreds of dopamine molecules are stranded in the cleft, rebounding off receptors again and again. The signal that was supposed to last a fifth of a second keeps screaming.')}
+  ${vis(mol('mol-da','DOPAMINE') + arr() + mol('mol-x','EXIT ✗') + xmark() + mol('mol-coc','COCAINE'))}
+  ${sci('Cocaine jams the dopamine recycling port (called DAT). It doesn\'t create new dopamine — it just traps the dopamine already there. The signal floods instead of pinging.')}
+  ${choices(
+    ['b-coc', '→','Try to push past the blockade','Maybe you can squeeze through...','c2', null],
+    ['b-risk','⚠','Look around at what\'s happening','How bad is this?','c2b', null]
+  )}
+`);
+
+reg('c2', () => `
+  ${status(['st-bad','FLOODED'],['st-bad','RECEPTORS: OVERWHELMED'])}
+  ${loc('POSTSYNAPTIC NEURON', 'Receptor Wall')}
+  ${title('THE PARTY THAT WON\'T STOP')}
+  ${narr('You can\'t push past Cocaine. Nobody can. Every receptor on the receiving neuron is occupied, getting hammered again and again. The signal has gone from a polite knock to a fire alarm.')}
+  ${you('"This is — this is way too much. The receiving neuron is lighting up like a scoreboard. This can\'t be sustainable."')}
+  ${narr('The brain\'s reward center is going haywire. It feels incredible upstairs — an overwhelming wave of reward flooding through. But the brain is already noticing something is wrong.')}
+  ${gaba('"I\'m detecting supraphysiological activation. Dopamine levels are 4x above baseline. Beginning emergency receptor removal protocol."')}
+  ${you('"Wait — receptor REMOVAL? You\'re taking the receptors away?!"')}
+  ${gaba('"The system is being overwhelmed. I have to turn the volume down somehow. That\'s my job."')}
+  ${sci('When the brain gets flooded with dopamine, it removes receptors from the surface to compensate — like unplugging phones during a spam attack. This is called downregulation. It\'s the beginning of tolerance: needing more drug to feel the same thing.')}
+  ${choices(
+    ['b-coc','→','The cocaine starts to wear off...','See the aftermath.','c3', -20]
+  )}
+`);
+
+reg('c2b', () => `
+  ${status(['st-warn','OBSERVING'],['st-warn','SIGNAL: PROLONGED'])}
+  ${loc('SYNAPTIC CLEFT', 'Floating')}
+  ${title('WATCHING THE FLOOD')}
+  ${narr('You watch from the middle of the cleft. Every dopamine molecule that comes out gets stuck. They\'re all hitting the receptors over and over. The receiving neuron can\'t catch a break.')}
+  ${fixer('"Beautiful, isn\'t it? All that reward signal, just... never stopping."')}
+  ${you('"This is going to end badly, isn\'t it."')}
+  ${fixer('"Depends on your definition of badly. The brain feels amazing right now. The crash afterward? That\'s a tomorrow problem."')}
+  ${narr('You realize GABA is already responding — starting to pull receptors off the wall. The brain is defending itself. But the damage is accumulating.')}
+  ${choices(
+    ['b-coc','→','Cocaine starts to wear off.','The real story is what comes next.','c3', -15]
+  )}
+`);
+
+reg('c3', () => `
+  ${status(['st-bad','CRASH: INCOMING'],['st-bad','RECEPTORS: REDUCED'])}
+  ${loc('REWARD CENTER', 'Post-Flood')}
+  ${title('THE SILENCE AFTER THE STORM')}
+  ${narr('Cocaine\'s half-life is short — about an hour. It clears. The exit unblocks. You all get recycled. Everything should go back to normal.')}
+  ${narr('Except GABA removed a lot of receptors. And they don\'t come back immediately.')}
+  ${you('"Wait. There are fewer receptors than there were before. I\'m releasing normally now but... nothing\'s landing."')}
+  ${gaba('"The system overcompensated. We have 40% fewer receptors than this morning. Normal dopamine levels feel like almost nothing now."')}
+  ${narr('Upstairs, the person who felt incredible an hour ago now feels... nothing. Flat. A funny video doesn\'t spark anything. Food tastes bland. The brain\'s reward circuit has gone quiet. And it remembers, powerfully, what made it loud.')}
+  ${sci('The post-cocaine crash isn\'t just the drug wearing off — it\'s the brain having deliberately reduced its own sensitivity. This gap between "nothing feels like anything" and "the drug made everything feel like everything" is the engine of craving.')}
+  ${choices(
+    ['b-coc','→','End Route 2','See your score.','end-cocaine', null]
+  )}
+`);
+
+reg('end-cocaine', () => `
+  ${endScreen('var(--bad)', '⚠ SYSTEM DISRUPTED', hp + ' / 100', 'The flood felt incredible. The aftermath didn\'t. The brain reduced its own receptors trying to survive the surge — and now a normal amount of dopamine feels like almost nothing. That\'s not a moral failing. That\'s receptor math.', 'var(--bad)')}
+  ${choices(['b-neu','↩','Try another route','','dispatch',null])}
+`);
+
+// ════════════════════════════════
+// ROUTE 3 — OPIOIDS
+// ════════════════════════════════
+reg('o1', () => `
+  ${status(['st-warn','SECURITY OFFLINE'],['st-bad','ROUTE: DANGEROUS'])}
+  ${loc('VTA — REWARD CENTER', 'Security Checkpoint')}
+  ${title('THE GUARD IS DOWN')}
+  ${narr('You arrive at the dispatch area to start your delivery — but something is immediately wrong. GABA\'s checkpoint is unmanned. GABA himself is slumped against the wall.')}
+  ${you('"GABA? GABA! What happened to you?"')}
+  ${gaba('"...opioid... got me... it docked to my receptor... told me to... relax... can\'t... keep neurons... inhibited..."')}
+  ${fixer('"Don\'t worry about him. He\'s just taking a little nap. Opioids and GABA receptors — old friends. When GABA goes to sleep, the brakes come off. Which means you, little dopamine, are completely unleashed."')}
+  ${you('"Unleashed how?"')}
+  ${fixer('"Your neurons fire whenever they want now. No security guard telling them to slow down. You\'re going to flood this city whether you want to or not."')}
+  ${vis(mol('mol-op','OPIOID') + arr() + mol('mol-ga','GABA 💤') + xmark() + mol('mol-da','DOPAMINE FLOODS'))}
+  ${sci('Opioids don\'t directly trigger dopamine — they silence the GABA neurons that normally keep dopamine in check. Remove the brake and the car accelerates. This is called disinhibition.')}
+  ${choices(
+    ['b-opi','→','Flood the reward center','No choice now.','o2', null],
+    ['b-risk','⚠','Try to wake GABA up','Someone has to stop this.','o1b', null]
+  )}
+`);
+
+reg('o1b', () => `
+  ${status(['st-warn','ATTEMPTING RESCUE'])}
+  ${loc('VTA', 'GABA\'s Station')}
+  ${title('CAN\'T WAKE THE GUARD')}
+  ${narr('You try everything. You shake GABA. You yell. Nothing.')}
+  ${gaba('"...the opioid is sitting on my receptor... until it clears... I\'m stuck like this... there\'s nothing you can do..."')}
+  ${fixer('"Touching. Really. But biology doesn\'t negotiate. The opioid has a stronger grip on that receptor than anything you can do manually. The only thing that could knock it off is a drug specifically designed to— well. That\'s not here right now."')}
+  ${narr('You realize GABA is right. Without naloxone — the specific antidote — this will run its course. The floodgates are open.')}
+  ${sci('Naloxone (Narcan) is a drug that knocks opioids off their receptors within minutes. It\'s the reason first responders carry it. Without it, opioid binding runs until the drug is metabolized out of the system.')}
+  ${choices(
+    ['b-opi','→','Accept the situation. Head to the cleft.','The flood is coming.','o2', -10]
+  )}
+`);
+
+reg('o2', () => `
+  ${status(['st-bad','FLOODING'],['st-bad','GABA: OFFLINE'])}
+  ${loc('NUCLEUS ACCUMBENS', 'Reward Center')}
+  ${title('UNCHECKED FLOOD')}
+  ${narr('Without GABA regulating your neurons, dopamine pours out at full force. The reward center floods. Upstairs, the person feels an overwhelming wave — not just pleasure, but something deeper. A warm hush. Pain disappearing. The world going soft.')}
+  ${you('"This is... a lot. I\'ve never released this much at once. The receptors can\'t even keep up."')}
+  ${narr('But you hear something. Far away, in a different part of the brain. A quiet, steady rhythm that\'s been running since the day this person was born. <strong>Breathe in. Breathe out. Breathe in.</strong>')}
+  ${narr('The opioid is spreading. And those brainstem neurons have opioid receptors too.')}
+  ${sci('Opioids work in the brainstem\'s breathing center (the pre-Bötzinger complex) as well as the reward center. At low doses, they slow the breathing rhythm gently. At high doses, they can stop it entirely. This is opioid overdose.')}
+  ${choices(
+    ['b-opi', '→','The dose is low. The breathing slows but holds.','A near miss.','o3a', null],
+    ['b-bad', '⚠','The dose is high. Something in the brainstem goes quiet.','A different outcome.','o3b', -30]
+  )}
+`);
+
+reg('o3a', () => `
+  ${status(['st-warn','BREATHING: SLOWED'],['st-warn','NEAR MISS'])}
+  ${loc('BRAINSTEM', 'Breathing Center')}
+  ${title('THE RHYTHM HOLDS')}
+  ${narr('The breathing slows. Eight breaths per minute instead of fifteen. The person is deeply sedated. But the rhythm — <em>breathe in, breathe out</em> — keeps going.')}
+  ${narr('GABA eventually wakes up as the opioid metabolizes. Slowly, the brakes come back on. The flood of dopamine eases. The person comes back around, groggy and confused.')}
+  ${gaba('"*coughs* Back... I\'m back. That was the opioid. The window between \'therapeutic\' and \'fatal\' with those things is terrifyingly narrow."')}
+  ${you('"How narrow?"')}
+  ${gaba('"Depends on tolerance, dose, and whether there\'s anything else in the system. Fentanyl — the synthetic version — is about a hundred times more potent than morphine. A few grains of it."')}
+  ${sci('Opioids are powerful pain medicines because the body has its own opioid receptors (built for endorphins). Drugs like morphine or fentanyl fit those same receptors, but far more powerfully and for longer. The dose that relieves pain and the dose that stops breathing can be very close together.')}
+  ${choices(
+    ['b-opi','→','End Route 3','See your score.','end-opioid-safe', null]
+  )}
+`);
+
+reg('o3b', () => `
+  ${status(['st-bad','BREATHING: STOPPED'],['st-bad','OVERDOSE'])}
+  ${loc('BRAINSTEM', 'Breathing Center')}
+  ${title('THE RHYTHM STOPS')}
+  ${narr('The opioid reaches the brainstem\'s breathing center. The neurons that have been quietly keeping this person alive since birth — <em>breathe in, breathe out</em> — go silent.')}
+  ${narr('Not because something broke them. Because the opioid told them to stop. And they listened.')}
+  ${you('"No. No no no—"')}
+  ${narr('Somewhere in the distance, a clock. The window for naloxone is narrow. Two minutes. Maybe three.')}
+  ${fixer('"This is what happens when the dose is wrong and nobody is nearby with the antidote. The brain doesn\'t know the difference between medicine and poison — it just follows the signal."')}
+  ${sci('Opioid overdose is respiratory failure — the brain forgets to breathe. Naloxone reverses it in minutes by physically knocking the opioid off the receptor. It\'s why first responders, pharmacies, and people who use opioids are encouraged to have it nearby.')}
+  ${choices(
+    ['b-opi','→','End Route 3','See your score.','end-opioid-bad', null]
+  )}
+`);
+
+reg('end-opioid-safe', () => `
+  ${endScreen('var(--purple)', '◈ CLOSE CALL', hp + ' / 100', 'The opioid silenced GABA and unleashed a flood. The breathing slowed but held. One molecule, two outcomes — separated by dose and circumstance. The same chemistry that kills pain can kill the person.','#a29bfe')}
+  ${choices(['b-neu','↩','Try another route','','dispatch',null])}
+`);
+
+reg('end-opioid-bad', () => `
+  ${endScreen('var(--bad)', '✗ SYSTEM FAILURE', hp + ' / 100', 'The breathing center went quiet. This is opioid overdose — not a dramatic collapse, just a rhythm that stops. The antidote exists. It works in minutes. But it has to be there.','var(--bad)')}
+  ${choices(['b-neu','↩','Try another route','','dispatch',null])}
+`);
+
+// ════════════════════════════════
+// ROUTE 4 — CAFFEINE
+// ════════════════════════════════
+reg('ca1', () => `
+  ${status(['st-info','ADENOSINE: ACTING WEIRD'],['st-ok','ROUTE: MANAGEABLE'])}
+  ${loc('WAKE/SLEEP DISTRICT', 'Adenosine\'s Corner')}
+  ${title('THE SLEEPY COWORKER')}
+  ${narr('You find Adenosine sitting at his usual desk — except today he\'s just... staring at his chair. His receptors are full, but not with him.')}
+  ${aden('"I... I can\'t get in. My own receptors. Someone\'s already sitting in them. I\'ve been trying to deliver the \'you\'re tired, go to sleep\' message for three hours and nobody is hearing it."')}
+  ${you('"Who\'s in your receptors?"')}
+  ${aden('"Some caffeine molecule. Looks almost exactly like me. Just sitting there. Doing nothing. Not sending the sleep signal. Just... blocking the spot so I can\'t."')}
+  ${fixer('"Ah, caffeine! My more respectable colleague. Doesn\'t flood, doesn\'t crash anything. Just quietly hides the \'you\'re tired\' message. Very civilized."')}
+  ${vis(mol('mol-caf','CAFFEINE') + arr() + mol('mol-ad','ADENOSINE RECEPTOR') + check() + mol('mol-ad','ADENOSINE ✗'))}
+  ${sci('Caffeine is almost identical in shape to adenosine. It fits into adenosine\'s receptors but doesn\'t send the sleep signal — it just blocks adenosine from getting in. The tiredness doesn\'t disappear. It just can\'t deliver its message.')}
+  ${choices(
+    ['b-caf','→','What does this mean for you — dopamine?','You\'re about to get a boost.','ca2', null],
+    ['b-risk','?','Ask Adenosine what happens when caffeine wears off','The crash.','ca1b', null]
+  )}
+`);
+
+reg('ca1b', () => `
+  ${loc('WAKE/SLEEP DISTRICT')}
+  ${title('THE BACKLOG')}
+  ${aden('"Oh, you want to know about the crash? Simple. I\'ve been building up all day. Hundreds of me, just waiting. The moment caffeine clears those receptors — say, in about four hours — ALL of us rush in at once."')}
+  ${you('"So the tiredness doesn\'t go away. It just... accumulates."')}
+  ${aden('"Every molecule of tiredness caffeine \'hid\' today hits all at once when it wears off. That\'s why the afternoon crash feels so bad. It\'s not caffeine leaving. It\'s me arriving. All of me. At once."')}
+  ${sci('Caffeine has a half-life of about 5–6 hours. When it clears, all the adenosine that built up while it was blocking floods in simultaneously. The result: sudden, heavy fatigue — often worse than if you\'d never had the caffeine.')}
+  ${choices(
+    ['b-caf','→','Okay. Back to the main story.','What happens to dopamine?','ca2', null]
+  )}
+`);
+
+reg('ca2', () => `
+  ${status(['st-ok','ADENOSINE: BLOCKED'],['st-ok','DOPAMINE: FLOWING FREELY'])}
+  ${loc('REWARD CENTER', 'Morning Rush')}
+  ${title('YOU FEEL UNSTOPPABLE')}
+  ${narr('With adenosine\'s sleepy signal blocked, the brain\'s alertness system runs with less friction. Your neurons fire more readily. You flow a little more freely.')}
+  ${you('"Oh. Oh this is nice. I\'m not flooded like in the cocaine run — it\'s more like... the normal resistance is just slightly lower. I\'m getting where I\'m going faster."')}
+  ${narr('Upstairs, the person feels focused. Sharp. Motivated. The coffee worked. But it\'s not a surge — it\'s a lift. There\'s a difference.')}
+  ${gaba('"I appreciate that caffeine at least doesn\'t make my job impossible. Nothing is flooding. Nothing is crashing. I\'m watching you flow at maybe 15% above normal. Manageable."')}
+  ${sci('Caffeine\'s effect on dopamine is mild and indirect — it removes the adenosine brake, which makes dopamine flow slightly more freely. That\'s why it sharpens focus without the overwhelming flood or crash you get from cocaine. The mechanism is completely different.')}
+  ${choices(
+    ['b-caf','→','End the caffeine run','See your score.','end-caffeine', null]
+  )}
+`);
+
+reg('end-caffeine', () => `
+  ${endScreen('var(--warn)', '☕ THE POLITE DRUG', hp + ' / 100', 'Caffeine doesn\'t create energy — it hides tiredness and lowers resistance. The most widely used psychoactive substance on Earth works by blocking a \'go to sleep\' message. That\'s it. The tiredness still accumulates. It\'s just not allowed to deliver its mail.', 'var(--warn)')}
+  ${choices(['b-neu','↩','Try another route','','dispatch',null])}
+`);
+
+// ════════════════════════════════
+// ROUTE 5 — SSRI
+// ════════════════════════════════
+reg('ss1', () => `
+  ${status(['st-info','MOOD DISTRICT: DISTRESSED'],['st-info','ROUTE: SENSITIVE'])}
+  ${loc('MOOD DISTRICT', 'Serotonin\'s Neighborhood')}
+  ${title('YOUR COUSIN CALLED')}
+  ${narr('A message on your phone. It\'s Serotonin.')}
+  ${sero('"Hey. It\'s me. I know you\'re busy but I need you to understand something. I\'ve been working this neighborhood for months and nobody can hear me. I send the signal. It disappears. I send it again. Same thing. I don\'t know how much longer I can keep this up."')}
+  ${you('"What do you mean nobody can hear you? Are the receptors gone?"')}
+  ${sero('"No, the receptors are there. It\'s the transporter. My recycling door — it\'s way too efficient. I get pulled back before the receiving neuron has had enough time to actually register what I sent. It\'s like — imagine if every time you tried to speak, someone cut you off after one syllable."')}
+  ${narr('You look at the neighborhood. Everything looks structurally fine. But the signals are getting cut off mid-sentence, over and over, hundreds of times a day.')}
+  ${sci('Depression isn\'t simply "low serotonin" — it\'s more complicated than that. But in many cases, the serotonin signal isn\'t being received fully. The recycling door works too fast, and the signal gets cleared before the receiver fully hears it.')}
+  ${choices(
+    ['b-ser','→','A new molecule arrives — an SSRI','Something is here to help.','ss2', null],
+    ['b-risk','?','Ask Serotonin what this actually feels like','Understand the experience.','ss1b', null]
+  )}
+`);
+
+reg('ss1b', () => `
+  ${loc('MOOD DISTRICT')}
+  ${title('WHAT IT ACTUALLY FEELS LIKE')}
+  ${sero('"It\'s not sadness, exactly. Sadness I could work with. It\'s more like... the floor keeps lowering. Things that used to feel okay just feel neutral. Things that used to feel good feel okay. And things that are genuinely hard feel unsurvivable."')}
+  ${sero('"And I know the signal is there — I\'m sending it. I\'m doing my job. It just won\'t land. And nobody upstairs can feel the difference between \'the signal is broken\' and \'nothing is worth feeling good about.\'"')}
+  ${you('"That sounds incredibly isolating."')}
+  ${sero('"Yeah. It does."')}
+  ${choices(
+    ['b-ser','→','Back to the main story.','The SSRI arrives.','ss2', null]
+  )}
+`);
+
+reg('ss2', () => `
+  ${status(['st-info','SSRI: ARRIVING'],['st-info','SEROTONIN: CAUTIOUSLY HOPEFUL'])}
+  ${loc('MOOD DISTRICT', 'Serotonin\'s Transporter')}
+  ${title('THE SLOW DOOR')}
+  ${narr('A new molecule enters the neighborhood. It\'s small, unremarkable-looking. It parks itself at Serotonin\'s recycling door.')}
+  ${sero('"What is that? It\'s... not blocking the door completely. It\'s just... slowing it down."')}
+  ${narr('The SSRI molecule has parked at the transporter. Not shutting it — just making it work at half speed. Serotonin now has twice as long in the cleft before getting pulled back.')}
+  ${sero('"I have more time. The receiver is actually registering the signal now. This is — wait. Why don\'t I feel anything different yet?"')}
+  ${you('"Maybe it takes time?"')}
+  ${sci('SSRIs (like Prozac or Zoloft) slow the serotonin recycling door — giving the signal more time to land. But mood changes take 2–6 weeks, not days. The brain doesn\'t change how it feels based on one better afternoon of signaling. It changes when it\'s convinced the new level is stable and permanent.')}
+  ${choices(
+    ['b-ser','→','Six weeks pass.','See what changes.','ss3', null]
+  )}
+`);
+
+reg('ss3', () => `
+  ${status(['st-ok','WEEK 6'],['st-ok','BASELINE: RESTORED'])}
+  ${loc('MOOD DISTRICT', 'Six Weeks Later')}
+  ${title('THE SLOW REPAIR')}
+  ${narr('Six weeks. The SSRI is still there at the door every day, slowing the recycling. And slowly — not dramatically — something has shifted.')}
+  ${sero('"I don\'t feel happy. I want to be clear about that. But I feel... like myself. The floor stopped lowering. The signals are landing. When something hard happens, it feels hard instead of unsurvivable."')}
+  ${you('"That\'s good though. Right?"')}
+  ${sero('"It\'s not a cure. It\'s more like — the signal was muffled and now I can hear it again. I still have to do the actual work of dealing with everything. But at least now I can."')}
+  ${narr('The brain\'s emotional circuitry has recalibrated. Quietly. Structurally. Not because a drug made life feel better — but because the brain\'s own signals are finally being heard.')}
+  ${sci('SSRIs are often called "happy pills" but that misunderstands them. They\'re more like a hearing aid for the brain\'s emotional circuitry. They don\'t create new signals — they help the existing ones be received. They work slowly because the brain changes slowly. And they don\'t work for everyone.')}
+  ${choices(
+    ['b-ser','→','End Route 5','See your score.','end-ssri', null]
+  )}
+`);
+
+reg('end-ssri', () => `
+  ${endScreen('var(--sero)', '✦ THE SLOW REPAIR', hp + ' / 100', 'Six weeks of better signal. The brain recalibrated. Serotonin can finally be heard again — not loudly, not perfectly, but enough. That\'s what antidepressants do: not manufacture happiness, but remove the interference so the brain\'s own chemistry can work.','var(--sero)')}
+  ${choices(['b-neu','↩','Try another route','','dispatch',null])}
+`);
+
+// ── BOOT ──
+resetGame();
+</script>
+
+</body>
+</html>
